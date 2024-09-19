@@ -28,6 +28,12 @@ def main():
   device = 'cuda' if torch.cuda.is_available() and not opt.force_cpu else 'cpu'
   print('Running inference on device \"{}\"'.format(device))
 
+  with open('./calib.txt') as f:
+    lines = f.readlines()
+  K = np.fromstring(lines[1], sep=' ').reshape((3,3))
+  K[:2, 2] = K[:2, 2] / 4
+  dist_coef = np.fromstring(lines[3], sep=' ')
+
   config = {
     'superpoint': {
       'nms_radius': opt.nms_radius,
@@ -55,12 +61,6 @@ def main():
   last_frame = ref_frame
   last_image_id = 0
 
-  # cumulative_time = 0
-  # cumulative_it = 0
-
-  # for i in range(100):
-  #   start = time.time()
-
   # DEFINE CURRENT FRAME TO MATCH WITH THE REFERENCE ONE
   cur_frame = cv2.imread(views_folder + 'ground_robot_view.jpg')
   cur_frame = cv2.resize(cur_frame, (868, 1156))
@@ -72,26 +72,43 @@ def main():
   kpts1 = pred['keypoints1'][0].cpu().numpy()
   matches = pred['matches0'][0].cpu().numpy()
   confidence = pred['matching_scores0'][0].cpu().numpy()
-  #   if i > 15:
-  #     cumulative_time += (time.time() - start)
-  #     cumulative_it += 1
-
-  # print(cumulative_it)
-  # print(cumulative_time / cumulative_it)
 
   valid = matches > -1
   mkpts0 = kpts0[valid]
   mkpts1 = kpts1[matches[valid]]
 
   # COMPUTE THE FOUNDAMENTA MATRIX
-  mkpts0 = np.int32(mkpts0)
-  mkpts1 = np.int32(mkpts1)
-  F, mask = cv2.findFundamentalMat(mkpts0, mkpts1, cv2.FM_LMEDS)
+  und_mkpts0 = cv2.undistortPoints(mkpts0, K, dist_coef, P=K)
+  und_mkpts1 = cv2.undistortPoints(mkpts1, K, dist_coef, P=K)
+  _, E, R, t, mask = cv2.recoverPose(mkpts0, mkpts1, K, dist_coef, K, dist_coef)
+  print(R)
+  print(t)
+  # U, S, V = np.linalg.svd(E)
+  # print(S)
+  # F, mask = cv2.findFundamentalMat(und_mkpts0, und_mkpts1)
 
+  # # mkpts0 = mkpts0[mask.ravel() == 1]
+  # # mkpts1 = mkpts1[mask.ravel() == 1]
+
+  # E = K.T @ F @ K
+  # U, S, V = np.linalg.svd(E)
+  # s = (S[0] + S[1]) / 2
+  # print(U)
+  # S = np.diag([s, s, 0])
+  # print(S)
+  # print(V)
+  # E = U @ S @ V.T
+  # print(E)
   mkpts0 = mkpts0[mask.ravel() == 1]
   mkpts1 = mkpts1[mask.ravel() == 1]
 
-  # TODO: THE FOUNDAMENTAL MATRIX HAS BEEN FOUND, NOW WE NEED TO COMPUTE THE RELATIVE TRANSLATION BETWEEN THE 2 VIEWS. HAVING THE FOUNDAMENTAL MATRIX AND THE INTRINSIC PARAMETERS OF THE CAMERA IT SHOULD BE EASY
+  print(mkpts0[:5])
+  print(mkpts1[:5])
+
+  # Now E is not valid, and need to be projected into the space of valid essential matrix.
+  # 2 possibilities:
+  # 1) either we average the first and second value of diag(S), set them as value to the first and second elements of S (while setting the third to 0), and then retrieve E' as U S' V
+  # 2) Compute E' directly as U diag(1, 1, 0) V
 
   color = cm.jet(confidence[valid])
   text = [
