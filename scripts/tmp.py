@@ -50,8 +50,8 @@ def main():
   keys = ['keypoints', 'scores', 'descriptors']
 
   # DEFINE REFERENCE FRAME
-  ref_frame = cv2.imread(refs_folder + 'ground_robot_ref.jpg')
-  ref_frame = cv2.resize(ref_frame, (868, 1156))
+  ref_frame = cv2.imread(refs_folder + 'desk2_ref.jpg')
+  ref_frame = cv2.resize(ref_frame, (ref_frame.shape[1] // 4, ref_frame.shape[0] // 4))
   ref_frame = cv2.cvtColor(ref_frame, cv2.COLOR_BGR2GRAY)
 
   ref_tframe = frame2tensor(ref_frame, device)
@@ -62,8 +62,8 @@ def main():
   last_image_id = 0
 
   # DEFINE CURRENT FRAME TO MATCH WITH THE REFERENCE ONE
-  cur_frame = cv2.imread(views_folder + 'ground_robot_view.jpg')
-  cur_frame = cv2.resize(cur_frame, (868, 1156))
+  cur_frame = cv2.imread(views_folder + 'desk2_view.jpg')
+  cur_frame = cv2.resize(cur_frame, (cur_frame.shape[1] // 4, cur_frame.shape[0] // 4))
   cur_frame = cv2.cvtColor(cur_frame, cv2.COLOR_BGR2GRAY)
 
   cur_tframe = frame2tensor(cur_frame, device)
@@ -78,8 +78,8 @@ def main():
   mkpts1 = kpts1[matches[valid]]
 
   # COMPUTE THE FOUNDAMENTA MATRIX
-  und_mkpts0 = cv2.undistortPoints(mkpts0, K, dist_coef, P=K)
-  und_mkpts1 = cv2.undistortPoints(mkpts1, K, dist_coef, P=K)
+  und_mkpts0 = cv2.undistortPoints(kpts0, K, dist_coef, P=K)
+  und_mkpts1 = cv2.undistortPoints(kpts1, K, dist_coef, P=K)
   _, E, R, t, mask = cv2.recoverPose(mkpts0, mkpts1, K, dist_coef, K, dist_coef)
   print(R)
   print(t)
@@ -102,8 +102,8 @@ def main():
   mkpts0 = mkpts0[mask.ravel() == 1]
   mkpts1 = mkpts1[mask.ravel() == 1]
 
-  print(mkpts0[:5])
-  print(mkpts1[:5])
+  print(mkpts0[:10])
+  print(mkpts1[:10])
 
   # Now E is not valid, and need to be projected into the space of valid essential matrix.
   # 2 possibilities:

@@ -11,19 +11,42 @@ import torch
 from depthanything.depth_anything_v2.dpt import DepthAnythingV2
 from scipy.optimize import least_squares
 
-mkpts0 = [(606.,  73.),
+mkpts0 = np.array(
+         [(606.,  73.),
           (608.,  87.),
           (616.,  94.),
           (275., 314.),
-          (468., 343.)]
-mkpts0 = np.int32(mkpts0)
-mkpts1 = [[583., 231.],
-          [576., 240.],
-          [588., 245.],
-          [469., 381.],
-          [495., 399.]]
-mkpts1 = np.int32(mkpts1)
+          (468., 343.),
+          (475.,  86.),
+          (226.,  94.),
+          (507., 100.),
+          (283., 326.),
+          (597., 458.)]
+)
+# mkpts0 = np.int32(mkpts0)
+mkpts1 = np.array(
+         [(583., 231.),
+          (576., 240.),
+          (588., 245.),
+          (469., 381.),
+          (495., 399.),
+          (497., 212.),
+          (374., 175.),
+          (498., 223.),
+          (429., 363.),
+          (622., 477.)]
+)
+# mkpts1 = np.int32(mkpts1)
 
+t = np.array([[0.42767296], [-0.42097881], [0.79992042]])
+
+R = np.array([
+    [0.64000037, 0.35647223, -0.68068133],
+    [-0.34700468, 0.92447866, 0.15788276],
+    [0.68555618, 0.13515459, 0.71536421]
+])
+
+# def stereo_to_worold(
 
 def pixel_to_world(pixel_coords, distance, K):
   u, v = pixel_coords[0], pixel_coords[1]
@@ -66,7 +89,6 @@ if __name__ == '__main__':
   refs_folder    = resources_path + 'refs/'
   views_folder   = resources_path + 'views/'
 
-  t = np.array([[0.42767296], [-0.42097881], [0.79992042]])
 
   with open('./calib.txt') as f:
     lines = f.readlines()
@@ -85,26 +107,37 @@ if __name__ == '__main__':
   cmap = cm.get_cmap('Spectral_r')
 
 
-  ref_image  = cv2.imread(refs_folder + 'ground_robot_ref.jpg')
-  view_image = cv2.imread(views_folder + 'ground_robot_view.jpg')
-  ref_image  = cv2.resize(ref_image, (868, 1156))
-  view_image = cv2.resize(view_image, (868, 1156))
+  ref_image  = cv2.imread(refs_folder + 'desk2_ref.jpg')
+  view_image = cv2.imread(views_folder + 'desk2_view.jpg')
+  ref_image  = cv2.resize(ref_image, (ref_image.shape[1] // 4, ref_image.shape[0] // 4))
+  view_image = cv2.resize(view_image, (view_image.shape[1] // 4, view_image.shape[0] // 4))
 
   ref_depth  = depth_anything.infer_image(ref_image, args.input_size)
   view_depth = depth_anything.infer_image(view_image, args.input_size)
 
   # CONVERT MATCHING POINTS FROM 2D COORDS TO 3D COORDS
-  mkpts0_3d = np.array([pixel_to_world(pt, ref_depth[pt[1], pt[0]], K) for pt in mkpts0])
-  mkpts1_3d = np.array([pixel_to_world(pt, view_depth[pt[1], pt[0]], K) for pt in mkpts1])
+  mkpts0_3d = np.array([pixel_to_world(pt, ref_depth[int(pt[1]), int(pt[0])], K) for pt in mkpts0])
+  mkpts1_3d = np.array([pixel_to_world(pt, view_depth[int(pt[1]), int(pt[0])], K) for pt in mkpts1])
 
-  initial_scale = 1.0
-  result = least_squares(residuals, initial_scale, args=(mkpts0_3d, mkpts1_3d, t))
-  print(result)
-  optimal_scale = result.x[0]
-  print(optimal_scale)
+  success, rot, trans, _ = cv2.solvePnPRansac(
+      mkpts0_3d,
+      mkpts1,
+      K,
+      distCoeffs=dist_coef
+  )
 
-  T = optimal_scale * t
-  print(T)
+  rot, _ = cv2.Rodrigues(rot)
+  camera_pos = np.hstack((rot, trans))
+  print(camera_pos)
+
+
+
+
+  # OPTIMIZE THE SCALE FACTOR
+  # initial_scale = 1.0
+  # result = least_squares(residuals, initial_scale, args=(mkpts0_3d, mkpts1_3d, t))
+  # optimal_scale = result.x[0]
+  # T = optimal_scale * t
 
   # depth = (ref_depth - ref_depth.min()) / (ref_depth.max() - ref_depth.min()) * 255.0
   # depth = depth.astype(np.uint8)
