@@ -25,7 +25,7 @@ def parse_args():
 
     # ARGUMENT FOR DEPTH ANYTHING
     parser.add_argument('--input_size',           type=int,                      default=518)
-    parser.add_argument('--max_depth',            type=float,                    default=5.0)
+    parser.add_argument('--max_depth',            type=float,                    default=10.0)
 
     parser.add_argument('--encoder',              type=str,                      default='vitl',                      choices=['vits', 'vitb', 'vitl', 'vitg'])
 

@@ -46,7 +46,7 @@ def main():
 
   pose_predictor = camera_pose_predictor(refs_path, K, dist_coef, superglue_config, depthanything_config, device)
 
-  cam_frame = cv2.imread(views_path + 'desk2_view.jpg')
+  cam_frame = cv2.imread(views_path + 'ground_robot_view.jpg')
   cam_frame = cv2.resize(cam_frame, (cam_frame.shape[1] // 4, cam_frame.shape[0] // 4))
   cam_pose = pose_predictor.infer_pose(cam_frame)
   print(cam_pose)

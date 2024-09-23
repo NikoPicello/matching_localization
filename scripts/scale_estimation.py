@@ -49,6 +49,10 @@ R = np.array([
 # def stereo_to_worold(
 
 def pixel_to_world(pixel_coords, distance, K):
+  print(distance)
+  distance = np.median(distance)
+  print(distance)
+  input()
   u, v = pixel_coords[0], pixel_coords[1]
   pixel_coords_homogeneous = np.array([u, v, 1])
   normalized_coords = np.linalg.inv(K) @ pixel_coords_homogeneous
@@ -107,17 +111,19 @@ if __name__ == '__main__':
   cmap = cm.get_cmap('Spectral_r')
 
 
-  ref_image  = cv2.imread(refs_folder + 'desk2_ref.jpg')
-  view_image = cv2.imread(views_folder + 'desk2_view.jpg')
+  ref_image  = cv2.imread(refs_folder + 'lib_ref.jpg')
+  view_image = cv2.imread(views_folder + 'lib_view.jpg')
   ref_image  = cv2.resize(ref_image, (ref_image.shape[1] // 4, ref_image.shape[0] // 4))
   view_image = cv2.resize(view_image, (view_image.shape[1] // 4, view_image.shape[0] // 4))
 
   ref_depth  = depth_anything.infer_image(ref_image, args.input_size)
   view_depth = depth_anything.infer_image(view_image, args.input_size)
 
+  print(ref_depth[int(mkpts0[0][1]), int(mkpts0[0][0])])
+
   # CONVERT MATCHING POINTS FROM 2D COORDS TO 3D COORDS
-  mkpts0_3d = np.array([pixel_to_world(pt, ref_depth[int(pt[1]), int(pt[0])], K) for pt in mkpts0])
-  mkpts1_3d = np.array([pixel_to_world(pt, view_depth[int(pt[1]), int(pt[0])], K) for pt in mkpts1])
+  mkpts0_3d = np.array([pixel_to_world(pt, (ref_depth[int(pt[1])-3:int(pt[1])+4, int(pt[0])-3:int(pt[0])+4]), K) for pt in mkpts0])
+  mkpts1_3d = np.array([pixel_to_world(pt, (view_depth[int(pt[1])-3:int(pt[1])+4, int(pt[0])-3:int(pt[0])+4]), K) for pt in mkpts1])
 
   success, rot, trans, _ = cv2.solvePnPRansac(
       mkpts0_3d,
